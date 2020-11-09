@@ -16,6 +16,8 @@ from config import SQLALCHEMY_DATABASE_URI
 from flask_migrate import Migrate
 from utils import clean_venue_data
 import sys
+from sqlalchemy import func
+import datetime
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
@@ -42,11 +44,11 @@ class Venue(db.Model):
     city = db.Column(db.String(120), nullable = False)
     state = db.Column(db.String(120), nullable = False)
     phone = db.Column(db.String(120), nullable = False)
-    website = db.Column(db.String(120), nullable = False)
-    facebook_link = db.Column(db.String, nullable = False)
+    website = db.Column(db.String(120), nullable = True)
+    facebook_link = db.Column(db.String, nullable = True)
     seeking_talent = db.Column(db.Boolean, nullable = False)
     seeking_description = db.Column(db.String, nullable = True)
-    image_link = db.Column(db.String(500), nullable = False)
+    image_link = db.Column(db.String(500), nullable = True)
 
     genres = db.relationship('GenreTagsForVenues', backref='venue')
     shows = db.relationship('Show', backref='venue')
@@ -71,13 +73,13 @@ class Artist(db.Model):
     city = db.Column(db.String(120), nullable = False)
     state = db.Column(db.String(120), nullable = False)
     phone = db.Column(db.String(120), nullable = False)
-    image_link = db.Column(db.String(500), nullable = False)
-    facebook_link = db.Column(db.String(120), nullable = False)
-    website = db.Column(db.String, nullable = False)
+    image_link = db.Column(db.String(500), nullable = True)
+    facebook_link = db.Column(db.String(120), nullable = True)
+    website = db.Column(db.String, nullable = True)
     seeking_venue = db.Column(db.Boolean, nullable = False)
     seeking_description = db.Column(db.String, nullable = True)
 
-    genres = db.relationship('GenreTagsForArtists', backref='artist')
+    genres = db.relationship('GenreTagsForArtists', backref='artist', cascade = 'all, delete-orphan')
     shows = db.relationship('Show', backref='artist')
 
 
@@ -98,7 +100,10 @@ class Show(db.Model):
   id = db.Column(db.Integer, primary_key=True)
   artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'))
   venue_id = db.Column(db.Integer, db.ForeignKey('venue.id'))
-  show_date = db.Column(db.Date, nullable=False)
+  show_date = db.Column(db.DateTime, nullable=False)
+
+  def __repr__(self):
+    return f'{self.id, self.artist_id, self.venue_id, self.show_date}'
 
 
 
@@ -136,27 +141,53 @@ def index():
 def venues():
   # TODO: replace with real venues data.
   #       num_shows should be aggregated based on number of upcoming shows per venue.
-  data=[{
-    "city": "San Francisco",
-    "state": "CA",
-    "venues": [{
-      "id": 1,
-      "name": "The Musical Hop",
-      "num_upcoming_shows": 0,
-    }, {
-      "id": 3,
-      "name": "Park Square Live Music & Coffee",
-      "num_upcoming_shows": 1,
-    }]
-  }, {
-    "city": "New York",
-    "state": "NY",
-    "venues": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
-  }]
+  try:
+    data = {'|'.join([city_state.city, city_state.state]):[] for city_state in db.session.query(Venue.city, Venue.state).distinct()}
+    #get the subquery count of show dates after right now
+    sq = db.session.query(Show.venue_id, func.count(Show.show_date).label('count')).filter(Show.show_date>datetime.datetime.now()).group_by(Show.venue_id).subquery()
+
+    #outer join with venue
+    joined_q = db.session.query(Venue.id, Venue.name, Venue.city, Venue.state, sq.c.count).outerjoin(sq)
+
+    #initial data dict
+    for row in joined_q:
+      venue_data = {
+        "id": row.id,
+        "name": row.name,
+        "num_upcoming_shows": row.count or 0
+      }
+      data['|'.join([row.city,row.state])].append(venue_data)
+
+    #expand data dict to normal format
+    data = [{'city': key.split('|')[0], 'state': key.split('|')[1], 'venues': value} for key,value in data.items()]
+
+
+
+  except:
+    print(sys.exc_info())
+    pass
+
+  # data=[{
+  #   "city": "San Francisco",
+  #   "state": "CA",
+  #   "venues": [{
+  #     "id": 1,
+  #     "name": "The Musical Hop",
+  #     "num_upcoming_shows": 0,
+  #   }, {
+  #     "id": 3,
+  #     "name": "Park Square Live Music & Coffee",
+  #     "num_upcoming_shows": 1,
+  #   }]
+  # }, {
+  #   "city": "New York",
+  #   "state": "NY",
+  #   "venues": [{
+  #     "id": 2,
+  #     "name": "The Dueling Pianos Bar",
+  #     "num_upcoming_shows": 0,
+  #   }]
+  # }]
   return render_template('pages/venues.html', areas=data);
 
 @app.route('/venues/search', methods=['POST'])
@@ -264,17 +295,20 @@ def show_venue(venue_id):
 @app.route('/venues/create', methods=['GET'])
 def create_venue_form():
   form = VenueForm()
+  form.validate_on_submit()
   return render_template('forms/new_venue.html', form=form)
 
 @app.route('/venues/create', methods=['POST'])
 def create_venue_submission():
   # TODO: insert form data as a new Venue record in the db, instead
   # TODO: modify data to be the data object returned from db insertion
+  form = VenueForm()
+  if not form.validate_on_submit():
+    flash('An error occured. Venue ' + (' ,').join(list(form.errors.keys()))+ ' fields are invalid')
+    return render_template('pages/home.html')
   try:
-    request.form
-    results = request.form.to_dict(flat=False)
+    results = form.data
     genre_data = results['genres']
-    results = clean_venue_data(results)
     del results['genres']
     del results['csrf_token']
     new_venue = Venue(**results)
@@ -447,21 +481,9 @@ def edit_artist_submission(artist_id):
 
 @app.route('/venues/<int:venue_id>/edit', methods=['GET'])
 def edit_venue(venue_id):
-  form = VenueForm()
-  venue={
-    "id": 1,
-    "name": "The Musical Hop",
-    "genres": ["Jazz", "Reggae", "Swing", "Classical", "Folk"],
-    "address": "1015 Folsom Street",
-    "city": "San Francisco",
-    "state": "CA",
-    "phone": "123-123-1234",
-    "website": "https://www.themusicalhop.com",
-    "facebook_link": "https://www.facebook.com/TheMusicalHop",
-    "seeking_talent": True,
-    "seeking_description": "We are on the lookout for a local artist to play every two weeks. Please call us.",
-    "image_link": "https://images.unsplash.com/photo-1543900694-133f37abaaa5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=400&q=60"
-  }
+  venue = db.session.query(Venue).get(venue_id) 
+  form = VenueForm(obj = venue)
+  #form = VenueForm(obj=venue)
   # TODO: populate form with values from venue with ID <venue_id>
   return render_template('forms/edit_venue.html', form=form, venue=venue)
 
@@ -469,6 +491,32 @@ def edit_venue(venue_id):
 def edit_venue_submission(venue_id):
   # TODO: take values from the form submitted, and update existing
   # venue record with ID <venue_id> using the new attributes
+  form = VenueForm()
+  if not form.validate_on_submit():
+    flash('An error occured. Venue ' + (' ,').join(list(form.errors.keys()))+ ' fields are invalid')
+    return render_template('pages/home.html')
+  try:
+    results = form.data
+    genre_data = results['genres']
+    del results['genres']
+    del results['csrf_token']
+    db.session.query(Venue).filter(Venue.id == venue_id).update(results)
+    
+    db.session.query(GenreTagsForVenues).filter(GenreTagsForVenues.venue_id == venue_id).delete()
+    genre_entries = [GenreTagsForVenues(venue_id = venue_id, genre = genre) for genre in genre_data]
+    db.session.bulk_save_objects(genre_entries)
+
+    db.session.commit()
+
+    flash('Venue ' + request.form['name'] + ' was successfully updated!')
+  
+  except:
+    db.session.rollback()
+    flash('An error occured. Venue ' + request.form['name'] + ' could not be updated. Try again.')
+    print(sys.exc_info())
+  
+  finally:
+    db.session.close()
   return redirect(url_for('show_venue', venue_id=venue_id))
 
 #  Create Artist

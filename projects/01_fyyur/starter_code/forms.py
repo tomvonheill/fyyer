@@ -114,19 +114,20 @@ class VenueForm(Form):
         ]
     )
     facebook_link = StringField(
-        'facebook_link', validators=[URL()]
+        'facebook_link', validators=[Optional(), URL()]
     )
 
     website = StringField(
-        'website', validators=[URL()]
+        'website', validators=[Optional(), URL()]
     )
 
 
     seeking_talent = SelectField(
         'seeking_talent',
         choices = [
-            (True, 'I\'m seeking talent!'),
-            (False, 'We have enough talent...')],
+            ('True', 'I\'m seeking talent!'),
+            ('False', 'We have enough talent...')],
+        coerce= lambda x: x == 'True'
     )
 
     seeking_description = StringField(
@@ -201,7 +202,7 @@ class ArtistForm(Form):
         'phone'
     )
     image_link = StringField(
-        'image_link'
+        'image_link', validators=[Optional(), URL()]
     )
     genres = SelectMultipleField(
         # TODO implement enum restriction
@@ -229,11 +230,11 @@ class ArtistForm(Form):
         ]
     )
     facebook_link = StringField(
-        'facebook_link', validators=[URL()]
+        'facebook_link', validators=[Optional(), URL()]
     )
 
     website = StringField(
-        'website', validators=[URL()]
+        'website', validators=[Optional(), URL()]
     )
 
     seeking_venue = SelectField(
@@ -246,7 +247,7 @@ class ArtistForm(Form):
     )
     
     seeking_description = StringField(
-        'seeking_description', validators=[]
+        'seeking_description'
     )
     
 

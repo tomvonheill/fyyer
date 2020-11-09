@@ -44,13 +44,6 @@
       <div class="form-group">
         <label for="Website">Website</label>
         {{ form.website(class_ = 'form-control', placeholder='http://', autofocus = true) }}
-        {% if form.website.errors %}
-        <ul class="errors">
-          {% for error in form.name.errors %}
-          <li>{{error}}</li>'
-          {% endfor %}
-        </ul>
-        {% endif %}
       </div>
       <div class="form-group">
         <label>Seeking Talent, and description</label>
