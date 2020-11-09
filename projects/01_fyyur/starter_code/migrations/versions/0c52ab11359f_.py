@@ -64,7 +64,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('artist_id', sa.Integer(), nullable=True),
     sa.Column('venue_id', sa.Integer(), nullable=True),
-    sa.Column('show_date', sa.DateTime(), nullable=False),
+    sa.Column('start_time', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['artist_id'], ['artist.id'], ),
     sa.ForeignKeyConstraint(['venue_id'], ['venue.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -206,23 +206,23 @@ def upgrade():
     show_data=[{
     "venue_id": 1,
     "artist_id": 4,
-    "show_date": "2019-05-21T21:30:00.000Z"
+    "start_time": "2019-05-21T21:30:00.000Z"
     }, {
     "venue_id": 3,
     "artist_id": 5,
-    "show_date": parse_date_string("2019-06-15T23:00:00.000Z")
+    "start_time": parse_date_string("2019-06-15T23:00:00.000Z")
     }, {
     "venue_id": 3,
     "artist_id": 6,
-    "show_date": parse_date_string("2035-04-01T20:00:00.000Z")
+    "start_time": parse_date_string("2035-04-01T20:00:00.000Z")
     }, {
     "venue_id": 3,
     "artist_id": 6,
-    "show_date": parse_date_string("2035-04-08T20:00:00.000Z")
+    "start_time": parse_date_string("2035-04-08T20:00:00.000Z")
     }, {
     "venue_id": 3,
     "artist_id": 6,
-    "show_date": parse_date_string("2035-04-15T20:00:00.000Z")
+    "start_time": parse_date_string("2035-04-15T20:00:00.000Z")
     }]
 
     op.bulk_insert(
