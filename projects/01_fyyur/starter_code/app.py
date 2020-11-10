@@ -290,7 +290,18 @@ def delete_venue(venue_id):
 
   # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
   # clicking that button delete it from the db then redirect the user to the homepage
-  return None
+  try:
+    db.session.delete(db.session.query(Venue).get(venue_id))
+    db.session.commit()
+    flash('Venue was successfully deleted!')
+  
+  except:
+    db.session.rollback()
+    flash('An error occured. Venue  could not be listed. Try again.')
+    print(sys.exc_info())
+  finally:
+    db.session.close()
+  return redirect(url_for(venues))
 
 #  Artists
 #  ----------------------------------------------------------------
@@ -510,9 +521,9 @@ def create_artist_submission():
       db.session.commit()
     flash('An error occured. Artist ' + request.form['name'] + ' could not be listed. Try again.')
     print(sys.exc_info())
-  
   finally:
     db.session.close()
+
   return render_template('pages/home.html')
 
 
