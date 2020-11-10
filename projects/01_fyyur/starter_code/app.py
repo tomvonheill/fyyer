@@ -396,6 +396,32 @@ def edit_artist(artist_id):
 def edit_artist_submission(artist_id):
   # TODO: take values from the form submitted, and update existing
   # artist record with ID <artist_id> using the new attributes
+  form = ArtistForm()
+  if not form.validate_on_submit():
+    flash('An error occured. Artist ' + (' ,').join(list(form.errors.keys()))+ ' fields are invalid')
+    return redirect(url_for(edit_artist))
+  try:
+    results = form.data
+    genre_data = results['genres']
+    del results['genres']
+    del results['csrf_token']
+    db.session.query(Artist).filter(Artist.id == artist_id).update(results)
+    
+    db.session.query(GenreTagsForArtists).filter(GenreTagsForArtists.artist_id == artist_id).delete()
+    genre_entries = [GenreTagsForArtists(artist_id = artist_id, genre = genre) for genre in genre_data]
+    db.session.bulk_save_objects(genre_entries)
+
+    db.session.commit()
+
+    flash('Artist ' + request.form['name'] + ' was successfully updated!')
+  
+  except:
+    db.session.rollback()
+    flash('An error occured. Artist ' + request.form['name'] + ' could not be updated. Try again.')
+    print(sys.exc_info())
+  
+  finally:
+    db.session.close()
 
   return redirect(url_for('show_artist', artist_id=artist_id))
 
