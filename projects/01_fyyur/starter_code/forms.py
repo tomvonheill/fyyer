@@ -240,8 +240,8 @@ class ArtistForm(Form):
     seeking_venue = SelectField(
         'seeking_venue',
         choices = [
-            (True, 'Seeking Venue'),
-            (False, 'Not Seeking Venue')],
+            ('True', 'Seeking Venue'),
+            ('False', 'Not Seeking Venue')],
         coerce= lambda x : x == 'True'
 
     )

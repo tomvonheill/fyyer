@@ -388,7 +388,7 @@ def edit_artist(artist_id):
     "image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80"
   }
   # TODO: populate form with fields from artist with ID <artist_id>
-  artist = db.session.query(Artist).get(4)
+  artist = db.session.query(Artist).get(artist_id)
   form = ArtistForm(obj=artist)
   return render_template('forms/edit_artist.html', form=form, artist=artist)
 
@@ -454,9 +454,39 @@ def create_artist_submission():
   # TODO: modify data to be the data object returned from db insertion
 
   # on successful db insert, flash success
-  flash('Artist ' + request.form['name'] + ' was successfully listed!')
   # TODO: on unsuccessful db insert, flash an error instead.
   # e.g., flash('An error occurred. Artist ' + data.name + ' could not be listed.')
+  form = ArtistForm()
+  if not form.validate_on_submit():
+    flash('An error occured. Venue ' + (' ,').join(list(form.errors.keys()))+ ' fields are invalid')
+    return redirect(url_for(create_artist_form))
+  try:
+    delete_artist_incase_of_rollback = False
+    results = form.data
+    genre_data = results['genres']
+    del results['genres']
+    del results['csrf_token']
+    new_artist = Artist(**results)
+    db.session.add(new_artist)
+    db.session.commit()
+    delete_artist_incase_of_rollback = True
+
+
+    genre_entries = [GenreTagsForArtists(artist_id = new_artist.id, genre = genre) for genre in genre_data]
+    db.session.bulk_save_objects(genre_entries)
+    db.session.commit()
+    flash('Artist ' + request.form['name'] + ' was successfully listed!')
+  
+  except:
+    db.session.rollback()
+    if delete_artist_incase_of_rollback:
+      db.session.delete(new_artist)
+      db.session.commit()
+    flash('An error occured. Artist ' + request.form['name'] + ' could not be listed. Try again.')
+    print(sys.exc_info())
+  
+  finally:
+    db.session.close()
   return render_template('pages/home.html')
 
 
