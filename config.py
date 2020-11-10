@@ -10,4 +10,4 @@ DEBUG = True
 
 
 # TODO IMPLEMENT DATABASE URL
-SQLALCHEMY_DATABASE_URI = 'postgres://postgres:mathgeek101@localhost:5432/musicdb'
+SQLALCHEMY_DATABASE_URI = 'your databse url here'
