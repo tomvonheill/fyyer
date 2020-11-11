@@ -12,101 +12,16 @@ import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
-from config import SQLALCHEMY_DATABASE_URI
+from config import *
 from flask_migrate import Migrate
 from utils import clean_venue_data
 import sys
 from sqlalchemy import func
 import datetime
+from models import *
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
-
-app = Flask(__name__)
-moment = Moment(app)
-app.config.from_object('config')
-app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
-db = SQLAlchemy(app)
-migrate = Migrate(app,db)
-
-# TODO: connect to a local postgresql database
-
-#----------------------------------------------------------------------------#
-# Models.
-#----------------------------------------------------------------------------#
-
-class Venue(db.Model):
-    __tablename__ = 'venue'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable = False)
-    address = db.Column(db.String(120), nullable = False)
-    city = db.Column(db.String(120), nullable = False)
-    state = db.Column(db.String(120), nullable = False)
-    phone = db.Column(db.String(120), nullable = False)
-    website = db.Column(db.String(120), nullable = True)
-    facebook_link = db.Column(db.String, nullable = True)
-    seeking_talent = db.Column(db.Boolean, nullable = False)
-    seeking_description = db.Column(db.String, nullable = True)
-    image_link = db.Column(db.String(500), nullable = True)
-
-    genres = db.relationship('GenreTagsForVenues', backref='venue')
-    shows = db.relationship('Show', backref='venue')
-    
-
-# TODO: implement any missing fields, as a database migration using Flask-Migrate
-
-class GenreTagsForVenues(db.Model):
-  __tablename__ = 'venue_genre_tags'
-
-  venue_id = db.Column(db.Integer, db.ForeignKey('venue.id'), primary_key = True)
-  genre = db.Column(db.String(20), primary_key = True)
-
-  def __repr__(self):
-    return f'{self.genre}'
-
-class Artist(db.Model):
-    __tablename__ = 'artist'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable = False)
-    city = db.Column(db.String(120), nullable = False)
-    state = db.Column(db.String(120), nullable = False)
-    phone = db.Column(db.String(120), nullable = False)
-    image_link = db.Column(db.String(500), nullable = True)
-    facebook_link = db.Column(db.String(120), nullable = True)
-    website = db.Column(db.String, nullable = True)
-    seeking_venue = db.Column(db.Boolean, nullable = False)
-    seeking_description = db.Column(db.String, nullable = True)
-
-    genres = db.relationship('GenreTagsForArtists', backref='artist', cascade = 'all, delete-orphan')
-    shows = db.relationship('Show', backref='artist')
-
-
-# TODO: implement any missing fields, as a database migration using Flask-Migrate
-
-class GenreTagsForArtists(db.Model):
-  __tablename__ = 'artist_genre_tags'
-
-  artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'), primary_key = True)
-  genre = db.Column(db.String(20), primary_key = True)
-  
-  def __repr__(self):
-    return f'{self.genre}'
-
-class Show(db.Model):
-  __tablename__ = 'show'
-  
-  id = db.Column(db.Integer, primary_key=True)
-  artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'))
-  venue_id = db.Column(db.Integer, db.ForeignKey('venue.id'))
-  start_time = db.Column(db.DateTime, nullable=False)
-
-  def __repr__(self):
-    return f'{self.id, self.artist_id, self.venue_id, self.start_time}'
-
-
-
 
 
 # TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
@@ -385,19 +300,7 @@ def show_artist(artist_id):
 #  ----------------------------------------------------------------
 @app.route('/artists/<int:artist_id>/edit', methods=['GET'])
 def edit_artist(artist_id):
-  artist={
-    "id": 4,
-    "name": "Guns N Petals",
-    "genres": ["Rock n Roll"],
-    "city": "San Francisco",
-    "state": "CA",
-    "phone": "326-123-5000",
-    "website": "https://www.gunsnpetalsband.com",
-    "facebook_link": "https://www.facebook.com/GunsNPetals",
-    "seeking_venue": True,
-    "seeking_description": "Looking for shows to perform at in the San Francisco Bay Area!",
-    "image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80"
-  }
+
   # TODO: populate form with fields from artist with ID <artist_id>
   artist = db.session.query(Artist).get(artist_id)
   form = ArtistForm(obj=artist)
@@ -496,7 +399,7 @@ def create_artist_submission():
   form = ArtistForm()
   if not form.validate_on_submit():
     flash('An error occured. Venue ' + (' ,').join(list(form.errors.keys()))+ ' fields are invalid')
-    return redirect(url_for(create_artist_form))
+    return redirect('/')
   try:
     delete_artist_incase_of_rollback = False
     results = form.data
